@@ -33,10 +33,6 @@ def update_ssm_param(ssm_client, param_name, value):
         Overwrite=True
     )
 
-# For manually updating the ssm for testing and debugging to reload the files 
-# ssm = boto3.client('ssm')
-# update_ssm_param(ssm, PARAM_MASTER, '1900-01-01T00:00:00Z')
-# update_ssm_param(ssm, PARAM_FOLDER, '1900-01-01T00:00:00Z')
 
 def get_drive_service():
     secret_client = boto3.client("secretsmanager")

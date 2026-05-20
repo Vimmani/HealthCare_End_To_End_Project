@@ -37,6 +37,7 @@ if dynamic_frame.count() > 0:
     df = dynamic_frame.toDF() # Converting in to spark df
     
     # Global Trim: Standardize whitespace across ALL incoming columns dynamically
+    # Number_of_Certified_Beds
     for col_name in df.columns:
         df = df.withColumn(col_name, trim(col(col_name)))
         column_name_format = col_name.replace(" ","_").replace("-","_").replace("(","").replace(")","")
@@ -52,11 +53,10 @@ if dynamic_frame.count() > 0:
     cleaned_df = df \
         .withColumn("CMS_Certification_Number_CCN", col("CMS_Certification_Number_CCN").cast("string")) \
         .withColumn("Average_Number_of_Residents_per_Day", col("Average_Number_of_Residents_per_Day").cast("float")) \
-        .withColumn("Number_OF_Certified_Beds", col("Number_OF_Certified_Beds").cast("float")) \
+        .withColumn("Number_of_Certified_Beds", col("Number_of_Certified_Beds").cast("float")) \
         .withColumn("silver_ingested_at", current_timestamp())
         
-    cleaned_df = df.withColumnRenamed("CMS Certification Number (CCN)", "CMS_Certification_Number_CCN"
-)
+    #cleaned_df = cleaned_df.withColumnRenamed("CMS Certification Number (CCN)", "CMS_Certification_Number_CCN")
         
     print("💾 Step 3: Appending data directly to Silver S3 Delta Layer...")
     # Mode append acts dynamically with Job Bookmarks to continuously layer increments over time

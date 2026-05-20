@@ -3,8 +3,9 @@ from awsglue.utils import getResolvedOptions
 from pyspark.context import SparkContext
 from awsglue.context import GlueContext
 from awsglue.job import Job
+from pyspark.sql import Window
 from pyspark.sql.functions import sum as _sum, avg , col, round
-from pyspark.sql.functions import col, coalesce, lit, when, corr
+from pyspark.sql.functions import col, coalesce, lit, when, corr, row_number
 
 
 # Initialize Glue Context
@@ -21,11 +22,22 @@ SILVER_PROVINFO_PATH = "s3://healthcare-etoe-proj-silver-bucket/transactions/NH_
 GOLD_PATH    = "s3://healthcare-etoe-proj-gold-bucket/staffing_readmission_corr_metrics/"
 
 print("🚀 Step 1: Reading clean  Silver Layer...")
+
+# Read and deduplicate Provider data
 Prov_df = spark.read.format("delta").load(SILVER_PROVINFO_PATH)
+# Define the Window Spec to pick the latest ingested record per facility
+window_spec_prov = Window.partitionBy("CMS_Certification_Number_CCN").orderBy(Prov_df["silver_ingested_at"].desc())
+Prov_df = Prov_df.withColumn("row_num", row_number().over(window_spec_prov)).filter(col("row_num") == 1).drop("row_num")
+
 Prov_df = Prov_df.withColumn("Reported_Total_Nurse_Staffing_Hours_per_Resident_per_Day", coalesce(col("Reported_Total_Nurse_Staffing_Hours_per_Resident_per_Day").cast("double"), lit(0.0)))
 
 
+# Read and deduplicate Facility Performance data
 Fac_df = spark.read.format("delta").load(SILVER_FAC_PATH)
+# Define the Window Spec to pick the latest ingested record per facility
+window_spec_fac = Window.partitionBy("CMS_Certification_Number_CCN").orderBy(Fac_df["silver_ingested_at"].desc())
+Fac_df = Fac_df.withColumn("row_num", row_number().over(window_spec_fac)).filter(col("row_num") == 1).drop("row_num")
+
 Fac_df = Fac_df.withColumn("Performance_Period_FY_2022_Risk_Standardized_Readmission_Rate", coalesce(col("Performance_Period_FY_2022_Risk_Standardized_Readmission_Rate").cast("double"), lit(0.0)))
 
 merged_df = Prov_df.alias("prov").join(Fac_df.alias("fac"), on="CMS_Certification_Number_CCN", how="inner")
@@ -36,7 +48,8 @@ merged_df = merged_df.drop(
     col("fac.Provider_Name"), 
     col("fac.ZIP_Code"), 
     col("fac.Provider_Address"), 
-    col("fac.City/Town")
+    col("fac.City/Town"),
+    col("fac.silver_ingested_at")
 )
 
 # Filter Outliers (Standard Reporting Error Cleanup)

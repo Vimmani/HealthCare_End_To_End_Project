@@ -37,8 +37,6 @@ merged_df = merged_df.withColumn("Bed_Utilization_Rate", (col("Average_Number_of
 merged_df = merged_df.drop("Qual_df.State") 
 
 # Bed Utilization Rates By Hospital
-
-#bed_util_by_hospital = merged_df.groupBy("prov_df.Provider_Name").agg(round(avg(col("Bed_Utilization_Rate")), 2).alias("Bed_Utilization_By_Hospital"))
 bed_util_by_hospital = merged_df.groupBy("prov_df.Provider_Name", "prov_df.State").agg(round(avg(col("Bed_Utilization_Rate")), 2).alias("Bed_Utilization_By_Hospital"))
 
 # Bed Utilization Rates By Department
@@ -51,7 +49,7 @@ bed_util_by_hospital.coalesce(1).write.format("delta") \
 
 bed_util_by_department.coalesce(1).write.format("delta") \
     .mode("overwrite") \
-    .option("ov#erwriteSchema", "true") \
+    .option("overwriteSchema", "true") \
     .save(GOLD_PATH+ "utilization_by_department/")
 
 
